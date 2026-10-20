@@ -194,6 +194,9 @@ def min_index_distance(distance_arr, k):
 # ----------- End ---------------- trying different algorithm for finding min distance and index ----
 
 
+
+# -------------- Start ------------- Identifying each class and storing the indices of images belonging to it ----
+
 # nearest = min_index_distance(distances, 3)
 # class_arrange = 0;
 # class_name = 0;
@@ -249,41 +252,37 @@ def min_index_distance(distance_arr, k):
 
 
 
+ # identifying classes and their indices
+
+def class_index_connection(y_train):
+
+    class_arrange = {}
+
+    for i in range(len(y_train)):
+
+        found = False
+
+        for class_name in class_arrange:
+
+            if y_train[i] == class_name:
+
+                class_arrange[class_name].append(i)
+                found = True
+                break
+
+        if found == False:
+
+            class_arrange[y_train[i]] = [i]
+
+    return class_arrange
 
 
+y_train = np.array([3, 0, 7, 3, 2, 7, 0, 3])
 
-# # identifying classes and their indices
+class_arrange = class_index_connection(y_train)
 
-# def class_index_connection(y_train):
-
-#     class_arrange = {}
-
-#     for i in range(len(y_train)):
-
-#         found = False
-
-#         for class_name in class_arrange:
-
-#             if y_train[i] == class_name:
-
-#                 class_arrange[class_name].append(i)
-#                 found = True
-#                 break
-
-#         if found == False:
-
-#             class_arrange[y_train[i]] = [i]
-
-#     return class_arrange
+print(class_arrange)
 
 
-# y_train = np.array([3, 0, 7, 3, 2, 7, 0, 3])
-
-# class_arrange = class_index_connection(y_train)
-
-# print(class_arrange)
-
-
-
-
-#                     
+# -------------- End ------------- Identifying each class and storing the indices of images belonging to it ----
+                   
