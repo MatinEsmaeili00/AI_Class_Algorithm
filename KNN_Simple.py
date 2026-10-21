@@ -191,98 +191,154 @@ def min_index_distance(distance_arr, k):
 
     return nearest
 
+nearest = min_index_distance(distances, 3)
 # ----------- End ---------------- trying different algorithm for finding min distance and index ----
 
 
 
-# -------------- Start ------------- Identifying each class and storing the indices of images belonging to it ----
+# # -------------- Start ------------- Identifying each class and storing the indices of images belonging to it ----
 
-# nearest = min_index_distance(distances, 3)
-# class_arrange = 0;
-# class_name = 0;
+# # class_arrange = 0;
+# # class_name = 0;
 
-# # identifying class and their index
-# def class_index_connection(y_train):
-#     for i in range(len(y_train)):
-#         index = i;
-#          while index < len(y_train):
-#             index+1;
-#             if y_train[i] == y_train[index]:
-#                 class_arrange +1;
+# # # identifying class and their index
+# # def class_index_connection(y_train):
+# #     for i in range(len(y_train)):
+# #         index = i;
+# #          while index < len(y_train):
+# #             index+1;
+# #             if y_train[i] == y_train[index]:
+# #                 class_arrange +1;
                  
-#             else:
-#                 class_name.append( y_train[i])
+# #             else:
+# #                 class_name.append( y_train[i])
 
 
 
 
-# nearest = min_index_distance(distances, 3)
+# # nearest = min_index_distance(distances, 3)
 
-# class_arrange = {}
+# # class_arrange = {}
 
-# # identifying class and their index
+# # # identifying class and their index
+# # def class_index_connection(y_train):
+
+# #     class_arrange = {}
+
+# #     for i in range(len(y_train)):
+
+# #         index = i + 1
+
+# #         # If class doesn't exist, add it
+# #         if y_train[i] not in class_arrange:
+# #             class_arrange[y_train[i]] = [i]
+
+# #         while index < len(y_train):
+
+# #             if y_train[i] == y_train[index]:
+
+# #                 # Add matching index to this class
+# #                 if index not in class_arrange[y_train[i]]:
+# #                     class_arrange[y_train[i]].append(index)
+
+# #             index += 1
+
+# #     return class_arrange
+
+
+# # class_arrange = class_index_connection(y_train)
+
+# # print(class_arrange)
+
+
+
+#  # identifying classes and their indices
+
 # def class_index_connection(y_train):
 
 #     class_arrange = {}
 
 #     for i in range(len(y_train)):
 
-#         index = i + 1
+#         found = False
 
-#         # If class doesn't exist, add it
-#         if y_train[i] not in class_arrange:
+#         for class_name in class_arrange:
+
+#             if y_train[i] == class_name:
+
+#                 class_arrange[class_name].append(i)
+#                 found = True
+#                 break
+
+#         if found == False:
+
 #             class_arrange[y_train[i]] = [i]
-
-#         while index < len(y_train):
-
-#             if y_train[i] == y_train[index]:
-
-#                 # Add matching index to this class
-#                 if index not in class_arrange[y_train[i]]:
-#                     class_arrange[y_train[i]].append(index)
-
-#             index += 1
 
 #     return class_arrange
 
+
+# y_train = np.array([3, 0, 7, 3, 2, 7, 0, 3])
 
 # class_arrange = class_index_connection(y_train)
 
 # print(class_arrange)
 
 
-
- # identifying classes and their indices
-
-def class_index_connection(y_train):
-
-    class_arrange = {}
-
-    for i in range(len(y_train)):
-
-        found = False
-
-        for class_name in class_arrange:
-
-            if y_train[i] == class_name:
-
-                class_arrange[class_name].append(i)
-                found = True
-                break
-
-        if found == False:
-
-            class_arrange[y_train[i]] = [i]
-
-    return class_arrange
-
-
-y_train = np.array([3, 0, 7, 3, 2, 7, 0, 3])
-
-class_arrange = class_index_connection(y_train)
-
-print(class_arrange)
-
-
-# -------------- End ------------- Identifying each class and storing the indices of images belonging to it ----
+# # -------------- End ------------- Identifying each class and storing the indices of images belonging to it ----
                    
+# # So in the first algorithm (min_index_distance) I need to have the acutal array with me to bc I only ordered the classes with thir arrays order number,
+# # But in the second one (class_index_connection) I'm having the array data and the array order (althogh it is not sorted) bc it is in a disctionary so I don't need the main array anymore !!
+
+# But we are not ganna using it and replacing it with (get_nearest_labels)
+
+
+# -------------- Start ------------- Finding the labels of nearest images ----
+
+def get_nearest_labels(nearest, y_train):
+
+    nearest_labels = []
+
+#For every value inside the nearest list, take that value, store it temporarily in the variable index, and execute the code inside the loop.
+    for index in nearest:
+
+        # Find the class label of the image at this index
+        label = y_train[index]
+
+        # Store the label in our new array
+        nearest_labels.append(label)
+
+    return nearest_labels
+
+# -------------- End ------------- Finding the labels of nearest images ----
+
+nearest = min_index_distance(distances, 3)
+
+nearest_labels = get_nearest_labels(nearest, y_train)
+
+print("Nearest indices:", nearest)
+print("Nearest labels:", nearest_labels)
+
+
+
+# -------------- Start ------------- Majority Voting ----
+
+def majority_voting(nearest_labels):
+
+    votes = {}
+
+    # Count how many times each class appears
+    for label in nearest_labels:
+
+        # If we haven't seen this class before
+        if label not in votes:
+            votes[label] = 0
+
+        # Add one vote to this class
+        votes[label] += 1
+
+    return votes
+
+
+votes = majority_voting(nearest_labels)
+print("Votes:", votes)
+# -------------- End ------------- Majority Voting ----
