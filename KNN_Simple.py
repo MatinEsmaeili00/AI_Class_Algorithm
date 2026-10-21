@@ -2,6 +2,9 @@
 #mathematical operations library
 import numpy as np
 
+#getting the data form the data_partition class
+from data_partition import get_data
+
 # each row is representing as a image for our example here,
 x_train_img = np.array([
 
@@ -33,6 +36,28 @@ def predict_knn(x_train, y_train, test, k=3): # it is ganna choose 3 neighbors !
         
         #axis=1 adds across columns, producing one number per training example.
     )
+
+      # Find the indices of k nearest images
+    nearest = min_index_distance(distances, k)
+
+    # Find the labels corresponding to those indices
+    nearest_labels = get_nearest_labels(nearest, y_train)
+
+    # Count votes and find the winning class
+    predicted_class, votes = majority_voting(nearest_labels)
+
+    # Return the final prediction and useful debugging information
+    return predicted_class, distances, nearest, nearest_labels, votes
+
+
+
+
+
+
+
+
+
+
     
 
     # Indix of the k closest examples
@@ -191,7 +216,7 @@ def min_index_distance(distance_arr, k):
 
     return nearest
 
-nearest = min_index_distance(distances, 3)
+# nearest = min_index_distance(distances, 3)
 # ----------- End ---------------- trying different algorithm for finding min distance and index ----
 
 
@@ -311,12 +336,13 @@ def get_nearest_labels(nearest, y_train):
 
 # -------------- End ------------- Finding the labels of nearest images ----
 
-nearest = min_index_distance(distances, 3)
+# nearest = min_index_distance(distances, 3)
 
-nearest_labels = get_nearest_labels(nearest, y_train)
+# nearest_labels = get_nearest_labels(nearest, y_train)
 
-print("Nearest indices:", nearest)
-print("Nearest labels:", nearest_labels)
+# print("test Nearest indices:", nearest)
+# print("test Nearest labels:", nearest_labels)
+
 
 
 
@@ -336,9 +362,72 @@ def majority_voting(nearest_labels):
         # Add one vote to this class
         votes[label] += 1
 
-    return votes
+    # Find the class with the most votes
+    max_votes = -1
+    predicted_class = None
+
+    for label in votes:
+
+        if votes[label] > max_votes:
+
+            max_votes = votes[label]
+            predicted_class = label
+
+    return predicted_class, votes
 
 
-votes = majority_voting(nearest_labels)
-print("Votes:", votes)
+# votes = majority_voting(nearest_labels)
+# print(" Test Votes:", votes)
 # -------------- End ------------- Majority Voting ----
+
+
+# # -------------- Start ------------- Testing KNN ----
+
+# x_train_img = np.array([
+#     [1, 1],
+#     [2, 2],
+#     [8, 8],
+#     [9, 9]
+# ], dtype=np.float32)
+
+# y_train = np.array([0, 0, 1, 1])
+
+# test_img = np.array([[1.5, 1.5]], dtype=np.float32)
+
+# # Run the entire KNN algorithm
+# prediction, distances, nearest, nearest_labels, votes = predict_knn(
+#     x_train_img, y_train, test_img, k=3
+# )
+
+# print("Distances:", distances)
+# print("Nearest indices:", nearest)
+# print("Nearest labels:", nearest_labels)
+# print("Votes:", votes)
+# print("Predicted class:", prediction)
+
+# # -------------- End ------------- Testing KNN ----
+
+
+# -------------- Start ------------- Running KNN ----
+
+if __name__ == "__main__":
+
+    # Get training and testing data from data_partition.py
+    x_train, y_train, x_test, y_test = get_data()
+
+    # Test every example in the test partition
+    for i in range(len(x_test)):
+
+        prediction, distances, nearest, nearest_labels, votes = predict_knn(
+            x_train,
+            y_train,
+            x_test[i:i+1],
+            k=3
+        )
+
+        print("-----------------------")
+        print("Actual class:", y_test[i])
+        print("Predicted class:", prediction)
+        print("Votes:", votes)
+
+# -------------- End ------------- Running KNN ----
