@@ -5,6 +5,11 @@ import numpy as np
 #getting the data form the data_partition class
 from data_partition import get_data
 
+
+# for connecting it with p5.js
+import json
+from pathlib import Path
+
 # each row is representing as a image for our example here,
 x_train_img = np.array([
 
@@ -408,26 +413,86 @@ def majority_voting(nearest_labels):
 # # -------------- End ------------- Testing KNN ----
 
 
-# -------------- Start ------------- Running KNN ----
+# # -------------- Start ------------- Running KNN ----
+
+# if __name__ == "__main__":
+
+#     # Get training and testing data from data_partition.py
+#     x_train, y_train, x_test, y_test = get_data()
+
+#     # Test every example in the test partition
+#     for i in range(len(x_test)):
+
+#         prediction, distances, nearest, nearest_labels, votes = predict_knn(
+#             x_train,
+#             y_train,
+#             x_test[i:i+1],
+#             k=3
+#         )
+
+#         print("-----------------------")
+#         print("Actual class:", y_test[i])
+#         print("Predicted class:", prediction)
+#         print("Votes:", votes)
+
+# # -------------- End ------------- Running KNN ----
+
+
+# -------------- Start ------------- Running KNN with MNIST ----
 
 if __name__ == "__main__":
 
-    # Get training and testing data from data_partition.py
+    # Get real MNIST training and testing images
     x_train, y_train, x_test, y_test = get_data()
 
-    # Test every example in the test partition
-    for i in range(len(x_test)):
+    # Select the first testing image
+    test_image = x_test[0:1]
 
-        prediction, distances, nearest, nearest_labels, votes = predict_knn(
-            x_train,
-            y_train,
-            x_test[i:i+1],
-            k=3
-        )
+    # Run the KNN algorithm
+    prediction, distances, nearest, nearest_labels, votes = predict_knn(
+        x_train,
+        y_train,
+        test_image,
+        k=3
+    )
 
-        print("-----------------------")
-        print("Actual class:", y_test[i])
-        print("Predicted class:", prediction)
-        print("Votes:", votes)
+    print("-----------------------")
+    print("Test image shape:", test_image.shape)
+    print("Actual digit:", y_test[0])
+    print("Predicted digit:", prediction)
+    print("Nearest indices:", nearest)
+    print("Nearest labels:", nearest_labels)
+    print("Votes:", votes)
 
-# -------------- End ------------- Running KNN ----
+# -------------- End ------------- Running KNN with MNIST ----
+
+
+
+
+# Prepare the test image and KNN results for p5.js
+
+neighbors = []
+
+for index in nearest:
+    neighbors.append({
+        "pixels": x_train[index].tolist(),
+        "label": int(y_train[index]),
+        "distance": float(distances[index])
+    })
+
+result = {
+    "test_image": test_image[0].tolist(),
+    "prediction": int(prediction),
+    "actual": int(y_test[0]),
+    "neighbors": neighbors,
+    "votes": {str(label): int(count) for label, count in votes.items()}
+}
+
+# Save result inside our visualization folder
+folder = Path(__file__).resolve().parent / "visualization"
+folder.mkdir(exist_ok=True)
+
+with open(folder / "result.json", "w") as file:
+    json.dump(result, file)
+
+print("Visualization data exported!")
