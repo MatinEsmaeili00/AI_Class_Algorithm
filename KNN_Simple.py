@@ -28,7 +28,7 @@ test_img = np.array([[1.5,1.5]], dtype = np.float32) # this is the image that we
 distances = np.sqrt(
         np.sum((x_train_img - test_img) ** 2, axis =1))
 
-def predict_knn(x_train, y_train, test, k=3): # it is ganna choose 3 neighbors !
+def predict_knn(x_train, y_train, test, k): # it is ganna choose 3 neighbors !
 
 
     # Calculate Euclidean distance from test to every training point
@@ -453,7 +453,7 @@ if __name__ == "__main__":
         x_train,
         y_train,
         test_image,
-        k=3
+        k=5
     )
 
     print("-----------------------")

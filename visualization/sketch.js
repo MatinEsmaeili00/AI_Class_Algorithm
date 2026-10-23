@@ -7,7 +7,7 @@ function preload() {
 }
 
 function setup() {
-    createCanvas(800, 550);
+    createCanvas(1250, 550);
     noLoop();
 }
 
@@ -45,7 +45,7 @@ function draw() {
     // Draw nearest neighbors
     fill(255);
     textSize(20);
-    text("3 Nearest Neighbors", 40, 350);
+    text(result.neighbors.length + " Nearest Neighbors", 40, 350);
 
     for (let i = 0; i < result.neighbors.length; i++) {
 
