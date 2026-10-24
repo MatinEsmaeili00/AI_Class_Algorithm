@@ -3,16 +3,19 @@ let result;
 let algorithmSelect;
 let loadMessage = "Loading results...";
 
+
 function setup() {
 
     createCanvas(1250, 650);
     noLoop();
 
+    // Create algorithm selection dropdown
     algorithmSelect = createSelect();
 
     algorithmSelect.option("Naive Bayes", "naive_bayes");
     algorithmSelect.option("KNN", "knn");
     algorithmSelect.option("Linear Classifier", "linear_classifier");
+    algorithmSelect.option("MLP (PyTorch)", "mlp");
 
     algorithmSelect.position(30, 65);
     algorithmSelect.changed(loadAlgorithm);
@@ -40,13 +43,29 @@ function loadAlgorithm() {
     else if (algorithm === "linear_classifier") {
         file = "linear_classifier_result.json";
     }
+    else if (algorithm === "mlp") {
+        file = "mlp_result.json";
+    }
 
     loadJSON(file, function(data) {
+
+        // Ignore old responses if user switched algorithms
+        if (algorithmSelect.value() !== algorithm) {
+            return;
+        }
+
         result = data;
         loadMessage = "";
         redraw();
+
     }, function(error) {
-        loadMessage = "Could not load " + file + ". Run its Python file first.";
+
+        if (algorithmSelect.value() !== algorithm) {
+            return;
+        }
+
+        loadMessage = "Could not load " + file +
+                      ". Run its Python file first.";
         redraw();
     });
 }
@@ -62,6 +81,7 @@ function draw() {
     text("MNIST Digit Recognition", 30, 40);
 
     if (!result) {
+
         textSize(18);
         text(loadMessage, 40, 145);
         return;
@@ -88,14 +108,20 @@ function draw() {
     fill(255);
     text("Actual Digit: " + result.actual, 300, 295);
 
-    fill(result.prediction === result.actual ? "limegreen" : "red");
+    fill(
+        result.prediction === result.actual
+            ? "limegreen"
+            : "red"
+    );
 
     text(
-        result.prediction === result.actual ? "Correct!" : "Incorrect",
+        result.prediction === result.actual
+            ? "Correct!"
+            : "Incorrect",
         300, 330
     );
 
-    // Display selected algorithm
+    // Display selected algorithm results
     if (algorithmSelect.value() === "knn") {
         drawNeighbors();
     }
@@ -104,6 +130,9 @@ function draw() {
     }
     else if (algorithmSelect.value() === "linear_classifier") {
         drawLinearScores();
+    }
+    else if (algorithmSelect.value() === "mlp") {
+        drawMLPScores();
     }
 }
 
@@ -114,7 +143,11 @@ function drawNeighbors() {
     fill(255);
     textSize(20);
 
-    text(result.neighbors.length + " Nearest Neighbors", 40, 390);
+    text(
+        result.neighbors.length + " Nearest Neighbors",
+        40,
+        390
+    );
 
     for (let i = 0; i < result.neighbors.length; i++) {
 
@@ -127,12 +160,17 @@ function drawNeighbors() {
         textSize(14);
 
         text("Class: " + neighbor.label, x, 545);
-        text("Distance: " + neighbor.distance.toFixed(2), x, 570);
+
+        text(
+            "Distance: " + neighbor.distance.toFixed(2),
+            x,
+            570
+        );
     }
 }
 
 
-// Naive Bayes class probability visualization
+// Naive Bayes class probabilities visualization
 function drawProbabilities() {
 
     fill(255);
@@ -148,9 +186,11 @@ function drawProbabilities() {
         textSize(16);
         text(digit, 590, y + 17);
 
+        // Background bar
         fill(55);
         rect(620, y, 430, 23);
 
+        // Highlight prediction
         fill(
             digit === result.prediction
                 ? color(70, 220, 130)
@@ -171,6 +211,61 @@ function drawLinearScores() {
     fill(255);
     textSize(20);
     text("Linear Classifier Scores", 590, 130);
+
+    let scores = result.scores;
+
+    let minScore = Math.min(...scores);
+    let maxScore = Math.max(...scores);
+    let range = maxScore - minScore;
+
+    for (let digit = 0; digit < 10; digit++) {
+
+        let score = scores[digit];
+        let y = 155 + digit * 41;
+
+        // Normalize score for visualization
+        let barLength = range === 0
+            ? 0
+            : (score - minScore) / range * 430;
+
+        fill(255);
+        textSize(16);
+        text(digit, 590, y + 17);
+
+        // Background bar
+        fill(55);
+        rect(620, y, 430, 23);
+
+        // Highlight predicted digit
+        if (digit === result.prediction) {
+            fill(70, 220, 130);
+        } else {
+            fill(100, 155, 240);
+        }
+
+        rect(620, y, barLength, 23);
+
+        // Display actual score
+        fill(255);
+        text(score.toFixed(2), 1065, y + 17);
+    }
+
+    fill(190);
+    textSize(15);
+
+    text(
+        "Test Accuracy: " + result.accuracy.toFixed(2) + "%",
+        590, 595
+    );
+}
+
+
+// MLP neural network class scores visualization
+function drawMLPScores() {
+
+    fill(255);
+    textSize(20);
+    text("MLP Neural Network Scores", 590, 130);
 
     let scores = result.scores;
 
@@ -205,17 +300,27 @@ function drawLinearScores() {
 
         rect(620, y, barLength, 23);
 
-        // Display actual class score
+        // Display actual network score (logit)
         fill(255);
         text(score.toFixed(2), 1065, y + 17);
     }
 
+    // Display MLP accuracy
     fill(190);
     textSize(15);
 
     text(
         "Test Accuracy: " + result.accuracy.toFixed(2) + "%",
         590, 595
+    );
+
+    // Show network architecture
+    fill(190);
+    textSize(14);
+
+    text(
+        "Architecture: 784 -> 256 -> 128 -> 10",
+        590, 625
     );
 }
 
