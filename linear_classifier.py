@@ -1,5 +1,7 @@
 
 import numpy as np
+import json
+from pathlib import Path
 from data_partition import get_data
 
 
@@ -20,7 +22,7 @@ def calculate_loss(scores, targets):
 
 
 # Train linear classifier using gradient descent
-def train_linear_classifier(x_train, y_train, epochs=100, learning_rate=0.1):
+def train_linear_classifier(x_train, y_train, epochs=100, learning_rate=0.001):
 
     # Number of input pixels and output classes
     num_features = x_train.shape[1]
@@ -69,12 +71,42 @@ if __name__ == "__main__":
 
     x_train, y_train, x_test, y_test = get_data()
 
+    # Train
     weights = train_linear_classifier(x_train, y_train)
 
+    # Test all images
     predictions = predict_linear_classifier(x_test, weights)
 
     accuracy = np.mean(predictions == y_test) * 100
 
     print("Accuracy:", accuracy, "%")
-    print("First prediction:", predictions[0])
-    print("Actual label:", y_test[0])
+
+    # Choose one image for visualization
+    test_index = 0
+    test_image = x_test[test_index]
+
+    # Calculate class scores for this image
+    scores = forward(test_image.reshape(1, -1), weights)[0]
+
+    prediction = int(np.argmax(scores))
+
+    print("Predicted digit:", prediction)
+    print("Actual digit:", y_test[test_index])
+
+    # Save data for p5.js
+    result = {
+        "algorithm": "linear_classifier",
+        "test_image": test_image.tolist(),
+        "prediction": prediction,
+        "actual": int(y_test[test_index]),
+        "scores": scores.tolist(),
+        "accuracy": float(accuracy)
+    }
+
+    folder = Path(__file__).resolve().parent / "visualization"
+    folder.mkdir(exist_ok=True)
+
+    with open(folder / "linear_classifier_result.json", "w") as file:
+        json.dump(result, file)
+
+    print("Linear Classifier visualization data exported!")
