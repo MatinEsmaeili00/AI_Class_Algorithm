@@ -1,21 +1,32 @@
 
- // MNIST visualizer
-// This file only reads exported JSON. It never trains models.
+ // MNIST Digit Recognition Visualizer
+// This code only reads JSON files exported by Python.
+// It does not train or modify any machine learning algorithm.
 
 let result = null;
-let algorithmSelect, digitSelect, neuronSelect;
+
+let algorithmSelect;
+let digitSelect;
+let neuronSelect;
+
+let cnnLayerSelect;
+let cnnFilterSelect;
+
 let message = "Loading results...";
 let currentRequest = 0;
 
+
+// JSON files for each algorithm
 const FILES = {
     knn: "result.json",
     naive_bayes: "naive_bayes_result.json",
     linear_classifier: "linear_classifier_result.json",
-    mlp: "mlp_result.json"
+    mlp: "mlp_result.json",
+    cnn: "cnn_result.json"
 };
 
 
-// ---------------- SETUP ----------------
+// ---------------- START SETUP ----------------
 
 function setup() {
 
@@ -24,7 +35,7 @@ function setup() {
     noLoop();
     textFont("Arial");
 
-    // Algorithm selection
+    // Select algorithm
     algorithmSelect = createSelect();
     algorithmSelect.position(30, 66);
 
@@ -32,8 +43,10 @@ function setup() {
     algorithmSelect.option("Naive Bayes", "naive_bayes");
     algorithmSelect.option("Linear Classifier", "linear_classifier");
     algorithmSelect.option("MLP (PyTorch)", "mlp");
+    algorithmSelect.option("CNN (PyTorch)", "cnn");
 
     algorithmSelect.changed(loadAlgorithm);
+
 
     // Linear Classifier digit selection
     digitSelect = createSelect();
@@ -44,17 +57,44 @@ function setup() {
     }
 
     digitSelect.changed(() => redraw());
+    digitSelect.hide();
+
 
     // MLP neuron selection
     neuronSelect = createSelect();
     neuronSelect.position(920, 424);
+
     neuronSelect.changed(() => redraw());
+    neuronSelect.hide();
+
+
+    // CNN convolutional layer selection
+    cnnLayerSelect = createSelect();
+    cnnLayerSelect.position(700, 525);
+
+    cnnLayerSelect.option("Convolution 1", "conv1");
+    cnnLayerSelect.option("Convolution 2", "conv2");
+
+    cnnLayerSelect.changed(updateCNNFilters);
+    cnnLayerSelect.hide();
+
+
+    // CNN filter selection
+    cnnFilterSelect = createSelect();
+    cnnFilterSelect.position(910, 525);
+
+    cnnFilterSelect.changed(() => redraw());
+    cnnFilterSelect.hide();
+
 
     loadAlgorithm();
 }
 
 
-// ---------------- LOAD JSON ----------------
+// ---------------- END SETUP ----------------
+
+
+// ---------------- START LOAD ALGORITHM ----------------
 
 function loadAlgorithm() {
 
@@ -64,18 +104,24 @@ function loadAlgorithm() {
     message = "Loading " + algorithm + "...";
     result = null;
 
+    // Hide all algorithm-specific controls
     digitSelect.hide();
     neuronSelect.hide();
+    cnnLayerSelect.hide();
+    cnnFilterSelect.hide();
 
     redraw();
 
-    // Prevent browser from using outdated JSON
+    // Load the exported JSON file
     loadJSON(
         FILES[algorithm] + "?r=" + Date.now(),
 
         function(data) {
 
-            if (requestId !== currentRequest) return;
+            // Ignore previous requests
+            if (requestId !== currentRequest) {
+                return;
+            }
 
             result = data;
             message = "";
@@ -85,9 +131,11 @@ function loadAlgorithm() {
                 algorithm === "linear_classifier" &&
                 Array.isArray(data.weights)
             ) {
+
                 digitSelect.value(String(data.prediction));
                 digitSelect.show();
             }
+
 
             // MLP controls
             if (
@@ -98,9 +146,10 @@ function loadAlgorithm() {
 
                 neuronSelect.elt.innerHTML = "";
 
-                const n = data.activations.hidden1.length;
+                let totalNeurons = data.activations.hidden1.length;
 
-                for (let i = 0; i < n; i++) {
+                for (let i = 0; i < totalNeurons; i++) {
+
                     neuronSelect.option(
                         "Hidden 1 neuron " + i,
                         String(i)
@@ -111,16 +160,35 @@ function loadAlgorithm() {
                 neuronSelect.show();
             }
 
+
+            // CNN controls
+            if (
+                algorithm === "cnn" &&
+                data.feature_maps &&
+                data.filters
+            ) {
+
+                cnnLayerSelect.value("conv1");
+
+                cnnLayerSelect.show();
+                cnnFilterSelect.show();
+
+                updateCNNFilters();
+            }
+
             redraw();
+
         },
 
         function(error) {
 
-            if (requestId !== currentRequest) return;
+            if (requestId !== currentRequest) {
+                return;
+            }
 
             message =
                 "Could not load " + FILES[algorithm] +
-                ". Run the exporter first.";
+                ". Run visualization/export_results.py first.";
 
             redraw();
         }
@@ -128,13 +196,17 @@ function loadAlgorithm() {
 }
 
 
-// ---------------- MAIN DRAW ----------------
+// ---------------- END LOAD ALGORITHM ----------------
+
+
+// ---------------- START MAIN DRAW ----------------
 
 function draw() {
 
     background(19, 23, 31);
 
     noStroke();
+
     fill(245);
     textSize(27);
     text("MNIST Digit Recognition", 30, 40);
@@ -142,6 +214,7 @@ function draw() {
     fill(163, 178, 196);
     textSize(13);
     text("Choose algorithm", 30, 62);
+
 
     if (!result) {
 
@@ -152,12 +225,14 @@ function draw() {
         return;
     }
 
-    // Main panels
+
+    // Main background panels
     drawPanel(25, 115, 410, 330);
     drawPanel(455, 115, 800, 330);
     drawPanel(25, 460, 1230, 360);
 
-    // Test image
+
+    // Draw test image
     fill(238);
     textSize(19);
     text("Test image", 45, 150);
@@ -166,10 +241,12 @@ function draw() {
         result.test_image &&
         result.test_image.length >= 784
     ) {
+
         drawDigit(result.test_image, 50, 170, 6.8);
     }
 
-    // Prediction
+
+    // Display prediction
     fill(166);
     textSize(16);
     text("Prediction", 274, 205);
@@ -178,20 +255,28 @@ function draw() {
     textSize(60);
     text(result.prediction, 272, 276);
 
-    // Actual label
+
+    // Display actual label
     fill(230);
     textSize(15);
+
     text("Actual: " + result.actual, 274, 310);
 
+
+    // Check if prediction is correct
     if (result.prediction === result.actual) {
+
         fill(64, 217, 149);
         text("Correct prediction", 274, 339);
+
     } else {
+
         fill(249, 111, 111);
         text("Incorrect prediction", 274, 339);
     }
 
-    // Accuracy
+
+    // Show accuracy
     if (Number.isFinite(result.accuracy)) {
 
         fill(170);
@@ -205,26 +290,41 @@ function draw() {
         );
     }
 
-    // Draw selected algorithm
+
+    // Display selected algorithm
     const chosen = algorithmSelect.value();
 
     if (chosen === "knn") {
+
         drawKNN();
+
     }
     else if (chosen === "naive_bayes") {
+
         drawProbabilityScores();
+
     }
     else if (chosen === "linear_classifier") {
 
         drawRawScores("Linear classifier output scores");
         drawLinearWeights();
+
     }
     else if (chosen === "mlp") {
 
         drawRawScores("MLP output scores (logits)");
         drawMLPNetwork();
+
+    }
+    else if (chosen === "cnn") {
+
+        drawRawScores("CNN output scores (logits)");
+        drawCNN();
     }
 }
+
+
+// ---------------- END MAIN DRAW ----------------
 
 
 // ---------------- DRAW PANEL ----------------
@@ -248,9 +348,9 @@ function drawDigit(pixels, x, y, scale) {
 
         for (let col = 0; col < 28; col++) {
 
-            const index = row * 28 + col;
+            let index = row * 28 + col;
 
-            const pixel = constrain(
+            let pixel = constrain(
                 Number(pixels[index]) || 0,
                 0,
                 1
@@ -277,34 +377,35 @@ function drawRawScores(title) {
     textSize(19);
     text(title, 478, 150);
 
-    const scores = result.scores;
+    let scores = result.scores;
 
     if (!Array.isArray(scores) || scores.length !== 10) {
         return;
     }
 
-    const minV = Math.min(...scores);
-    const maxV = Math.max(...scores);
-    const range = maxV - minV || 1;
+    let minValue = Math.min(...scores);
+    let maxValue = Math.max(...scores);
+    let range = maxValue - minValue || 1;
 
     for (let digit = 0; digit < 10; digit++) {
 
-        const y = 170 + digit * 24;
+        let y = 170 + digit * 24;
 
         fill(200);
         textSize(13);
         text(String(digit), 480, y + 12);
 
-        // Bar background
+        // Background bar
         fill(54, 62, 77);
         rect(510, y, 600, 17, 4);
 
-        // Normalize score for display
-        const barWidth = Math.max(
+        // Normalize score for visualization
+        let barWidth = Math.max(
             2,
-            (scores[digit] - minV) / range * 600
+            (scores[digit] - minValue) / range * 600
         );
 
+        // Highlight predicted digit
         if (digit === result.prediction) {
             fill(67, 216, 151);
         } else {
@@ -313,6 +414,7 @@ function drawRawScores(title) {
 
         rect(510, y, barWidth, 17, 4);
 
+        // Display score
         fill(220);
         text(scores[digit].toFixed(3), 1122, y + 13);
     }
@@ -334,17 +436,18 @@ function drawProbabilityScores() {
 
     fill(240);
     textSize(19);
+
     text("Naive Bayes class probabilities", 478, 150);
 
     for (let digit = 0; digit < 10; digit++) {
 
-        const raw = result.probabilities
+        let raw = result.probabilities
             ? Number(result.probabilities[String(digit)])
             : 0;
 
-        const value = Number.isFinite(raw) ? raw : 0;
+        let value = Number.isFinite(raw) ? raw : 0;
 
-        const y = 170 + digit * 24;
+        let y = 170 + digit * 24;
 
         fill(200);
         textSize(13);
@@ -390,12 +493,12 @@ function drawKNN() {
     textSize(19);
     text("Nearest neighbors", 478, 150);
 
-    const neighbors = Array.isArray(result.neighbors)
+    let neighbors = Array.isArray(result.neighbors)
         ? result.neighbors
         : [];
 
-    textSize(14);
     fill(180);
+    textSize(14);
 
     text(
         "Returned neighbors: " + neighbors.length,
@@ -409,13 +512,14 @@ function drawKNN() {
         i++
     ) {
 
-        const neighbor = neighbors[i];
-        const x = 48 + i * 170;
+        let neighbor = neighbors[i];
+        let x = 48 + i * 170;
 
         if (
             neighbor.pixels &&
             neighbor.pixels.length >= 784
         ) {
+
             drawDigit(neighbor.pixels, x, 520, 4.1);
         }
 
@@ -435,7 +539,7 @@ function drawKNN() {
     textSize(12);
 
     text(
-        "Displaying up to 7 neighbors from the exported JSON.",
+        "Displaying up to 7 neighbors from exported JSON.",
         48,
         787
     );
@@ -444,7 +548,6 @@ function drawKNN() {
 
 // ---------------- WEIGHT HEATMAP ----------------
 
-// Convert 784 learned weights into a 28x28 heatmap.
 // Green = positive weights
 // Red = negative weights
 
@@ -457,7 +560,7 @@ function drawWeightHeatmap(weights, x, y, scale) {
         return;
     }
 
-    const limit = Math.max(
+    let limit = Math.max(
         0.000001,
         ...weights.map(v => Math.abs(v))
     );
@@ -466,9 +569,9 @@ function drawWeightHeatmap(weights, x, y, scale) {
 
     for (let i = 0; i < 784; i++) {
 
-        const w = weights[i];
+        let w = weights[i];
 
-        const strength = Math.sqrt(
+        let strength = Math.sqrt(
             Math.abs(w) / limit
         );
 
@@ -489,8 +592,8 @@ function drawWeightHeatmap(weights, x, y, scale) {
             );
         }
 
-        const col = i % 28;
-        const row = Math.floor(i / 28);
+        let col = i % 28;
+        let row = Math.floor(i / 28);
 
         rect(
             x + col * scale,
@@ -502,7 +605,7 @@ function drawWeightHeatmap(weights, x, y, scale) {
 }
 
 
-// ---------------- LINEAR CLASSIFIER WEIGHTS ----------------
+// ---------------- LINEAR CLASSIFIER ----------------
 
 function drawLinearWeights() {
 
@@ -510,7 +613,7 @@ function drawLinearWeights() {
     textSize(20);
 
     text(
-        "Learned weights: 784 input pixels -> 10 output classes",
+        "Learned weights: 784 inputs -> 10 outputs",
         48,
         495
     );
@@ -524,7 +627,7 @@ function drawLinearWeights() {
         textSize(15);
 
         text(
-            "No weights found. Run visualization/export_results.py",
+            "No weights found. Run export_results.py",
             48,
             555
         );
@@ -534,17 +637,18 @@ function drawLinearWeights() {
 
     fill(165);
     textSize(14);
+
     text("Select output class:", 768, 438);
 
-    const digit = constrain(
+    let digit = constrain(
         parseInt(digitSelect.value() || "0"),
         0,
         9
     );
 
-    const weights = result.weights[digit];
+    let weights = result.weights[digit];
 
-    // Show actual learned weights
+    // Display learned weights
     drawWeightHeatmap(weights, 65, 525, 8.5);
 
     fill(229);
@@ -557,13 +661,14 @@ function drawLinearWeights() {
 
     text("Each square = one pixel weight", 365, 596);
 
-    // Color legend
+    // Positive weight legend
     fill(67, 216, 151);
     rect(365, 627, 14, 14);
 
     fill(203);
     text("Positive weight", 388, 639);
 
+    // Negative weight legend
     fill(244, 88, 92);
     rect(365, 654, 14, 14);
 
@@ -580,28 +685,19 @@ function drawLinearWeights() {
     );
 
     text(
-        "Each of the 10 outputs connects to all 784 inputs.",
+        "Each output connects to all 784 input pixels.",
         740,
         587
-    );
-
-    text(
-        "Heatmap uses weights exported from NumPy.",
-        740,
-        612
     );
 }
 
 
 // ---------------- MLP NETWORK ----------------
 
-// Shows a sampled version of the real network.
-// All displayed weights and activations come from Python.
-
 function drawMLPNetwork() {
 
-    const A = result.activations;
-    const W = result.weights;
+    let A = result.activations;
+    let W = result.weights;
 
     if (
         !A ||
@@ -615,7 +711,7 @@ function drawMLPNetwork() {
         textSize(15);
 
         text(
-            "Missing activations/weights. Run visualization/export_results.py",
+            "Missing MLP weights. Run export_results.py",
             48,
             520
         );
@@ -627,7 +723,7 @@ function drawMLPNetwork() {
     textSize(20);
 
     text(
-        "MLP architecture and selected neuron weights",
+        "MLP architecture and neuron weights",
         48,
         493
     );
@@ -636,32 +732,34 @@ function drawMLPNetwork() {
     textSize(13);
 
     text(
-        "Visible neurons are sampled. Lines show actual learned weights.",
+        "Sampled neurons with real learned connection weights.",
         48,
         516
     );
 
-    // Choose a smaller number of visible neurons
-    const inputIndices = sampleIndices(784, 11);
-    const h1Indices = sampleIndices(A.hidden1.length, 12);
-    const h2Indices = sampleIndices(A.hidden2.length, 10);
 
-    const outIndices = Array.from(
+    // Choose a smaller number of visible neurons
+    let inputIndices = sampleIndices(784, 11);
+    let h1Indices = sampleIndices(A.hidden1.length, 12);
+    let h2Indices = sampleIndices(A.hidden2.length, 10);
+
+    let outIndices = Array.from(
         { length: 10 },
         (_, i) => i
     );
 
-    const layers = [
+    let layers = [
         inputIndices,
         h1Indices,
         h2Indices,
         outIndices
     ];
 
-    const xs = [105, 355, 605, 845];
+    let xs = [105, 355, 605, 845];
 
-    // Calculate each neuron position
-    const yPositions = layers.map(layer =>
+
+    // Calculate neuron positions
+    let yPositions = layers.map(layer =>
         layer.map(
             (_, i) =>
                 568 +
@@ -669,34 +767,26 @@ function drawMLPNetwork() {
         )
     );
 
-    const weights = [
+    let weights = [
         W.layer1,
         W.layer2,
         W.layer3
     ];
 
-    // -------- DRAW CONNECTIONS --------
 
+    // Draw connections
     for (let layer = 0; layer < 3; layer++) {
 
-        for (
-            let j = 0;
-            j < layers[layer + 1].length;
-            j++
-        ) {
+        for (let j = 0; j < layers[layer + 1].length; j++) {
 
-            for (
-                let i = 0;
-                i < layers[layer].length;
-                i++
-            ) {
+            for (let i = 0; i < layers[layer].length; i++) {
 
-                const value =
+                let value =
                     weights[layer]
                     [layers[layer + 1][j]]
                     [layers[layer][i]];
 
-                const alpha = constrain(
+                let alpha = constrain(
                     Math.abs(value) * 260,
                     10,
                     115
@@ -720,11 +810,11 @@ function drawMLPNetwork() {
         }
     }
 
-    // -------- DRAW NEURONS --------
 
+    // Draw neurons
     noStroke();
 
-    const values = [
+    let values = [
         result.test_image,
         A.hidden1,
         A.hidden2,
@@ -733,22 +823,18 @@ function drawMLPNetwork() {
 
     for (let layer = 0; layer < 4; layer++) {
 
-        const layerValues = values[layer];
+        let layerValues = values[layer];
 
-        const maxAbs = Math.max(
+        let maxAbs = Math.max(
             0.001,
             ...layerValues.map(v => Math.abs(v))
         );
 
-        for (
-            let j = 0;
-            j < layers[layer].length;
-            j++
-        ) {
+        for (let j = 0; j < layers[layer].length; j++) {
 
-            const v = layerValues[layers[layer][j]];
+            let v = layerValues[layers[layer][j]];
 
-            const normalized = constrain(
+            let normalized = constrain(
                 Math.abs(v) / maxAbs,
                 0,
                 1
@@ -775,12 +861,12 @@ function drawMLPNetwork() {
         }
     }
 
-    // -------- LAYER LABELS --------
 
+    // Layer labels
     fill(219);
     textSize(13);
 
-    const labels = [
+    let labels = [
         "Input 784",
         "Hidden 256 + ReLU",
         "Hidden 128 + ReLU",
@@ -798,12 +884,11 @@ function drawMLPNetwork() {
 
     fill(171);
     textSize(12);
-
     text("Sampled connections", 49, 785);
 
-    // -------- SELECTED HIDDEN NEURON --------
 
-    const selected = constrain(
+    // Selected first hidden-layer neuron
+    let selected = constrain(
         parseInt(neuronSelect.value() || "0"),
         0,
         W.layer1.length - 1
@@ -821,13 +906,10 @@ function drawMLPNetwork() {
     fill(166);
     textSize(12);
 
-    text(
-        "28x28 incoming weights",
-        946,
-        576
-    );
+    text("28x28 incoming weights", 946, 576);
 
-    // Display the selected neuron's 784 input weights
+
+    // Draw selected neuron's weights
     drawWeightHeatmap(
         W.layer1[selected],
         952,
@@ -849,9 +931,6 @@ function drawMLPNetwork() {
 
 // ---------------- SAMPLE NEURON INDICES ----------------
 
-// Select evenly spaced neurons so the network
-// remains readable without displaying all 784 inputs.
-
 function sampleIndices(total, count) {
 
     return Array.from(
@@ -865,7 +944,6 @@ function sampleIndices(total, count) {
 }
 
 
-
 // ---------------- CNN FILTER SELECTION ----------------
 
 function updateCNNFilters() {
@@ -876,10 +954,9 @@ function updateCNNFilters() {
 
     let layer = cnnLayerSelect.value();
 
-    // Number of filters for selected convolution
     let totalFilters = result.feature_maps[layer].length;
 
-    // Clear previous options
+    // Clear previous filter options
     cnnFilterSelect.elt.innerHTML = "";
 
     for (let i = 0; i < totalFilters; i++) {
@@ -898,7 +975,7 @@ function updateCNNFilters() {
 
 // ---------------- CNN FEATURE MAP ----------------
 
-// Draw 2D feature maps as grayscale images
+// Draw a 2D feature map in grayscale
 function drawFeatureMap(map, x, y, size) {
 
     if (!Array.isArray(map) || map.length === 0) {
@@ -908,7 +985,6 @@ function drawFeatureMap(map, x, y, size) {
     let height = map.length;
     let width = map[0].length;
 
-    // Find min and max values
     let values = map.flat();
 
     let minValue = Math.min(...values);
@@ -926,7 +1002,6 @@ function drawFeatureMap(map, x, y, size) {
 
             let value = map[row][col];
 
-            // Normalize brightness for visualization
             let brightness =
                 (value - minValue) / range * 255;
 
@@ -945,7 +1020,7 @@ function drawFeatureMap(map, x, y, size) {
 
 // ---------------- CNN KERNEL ----------------
 
-// Visualize learned 3x3 filter weights
+// Visualize the learned 3x3 convolution weights
 function drawCNNKernel(kernel, x, y, size) {
 
     if (!Array.isArray(kernel)) {
@@ -969,9 +1044,9 @@ function drawCNNKernel(kernel, x, y, size) {
 
             let strength = Math.abs(weight) / maxAbs;
 
-            // Positive weights are green
             if (weight >= 0) {
 
+                // Positive weight = green
                 fill(
                     35,
                     70 + strength * 170,
@@ -980,7 +1055,7 @@ function drawCNNKernel(kernel, x, y, size) {
 
             } else {
 
-                // Negative weights are red
+                // Negative weight = red
                 fill(
                     80 + strength * 170,
                     45,
@@ -1008,13 +1083,21 @@ function drawCNNKernel(kernel, x, y, size) {
 function drawCNN() {
 
     if (!result.feature_maps || !result.filters) {
+
+        fill(245, 189, 98);
+        textSize(15);
+
+        text(
+            "Missing CNN data. Run export_results.py",
+            48,
+            520
+        );
+
         return;
     }
 
-    // Selected convolutional layer
     let layer = cnnLayerSelect.value();
 
-    // Selected filter
     let filterIndex = parseInt(
         cnnFilterSelect.value() || "0"
     );
@@ -1022,21 +1105,22 @@ function drawCNN() {
     let featureMaps = result.feature_maps;
     let filters = result.filters;
 
-    // Get actual selected feature map
+
+    // Selected convolution output
     let convMap = featureMaps[layer][filterIndex];
 
-    // Get corresponding pooled feature map
+    // Corresponding pooling output
     let poolLayer = layer === "conv1"
         ? "pool1"
         : "pool2";
 
     let poolMap = featureMaps[poolLayer][filterIndex];
 
-    // Get actual learned kernel weights
+    // Learned 3x3 kernel
     let kernel = filters[layer][filterIndex];
 
-    // -------- TITLE --------
 
+    // Title
     fill(239);
     textSize(20);
 
@@ -1050,13 +1134,13 @@ function drawCNN() {
     textSize(13);
 
     text(
-        "Select a layer and filter to inspect its learned features.",
+        "Choose a layer and filter to inspect what the CNN detects.",
         48,
         519
     );
 
-    // -------- INPUT IMAGE --------
 
+    // Input image
     fill(235);
     textSize(15);
     text("Input image", 55, 565);
@@ -1068,8 +1152,8 @@ function drawCNN() {
         5
     );
 
-    // -------- KERNEL --------
 
+    // Kernel
     fill(235);
     textSize(15);
     text("Learned 3x3 kernel", 250, 565);
@@ -1081,8 +1165,8 @@ function drawCNN() {
         105
     );
 
-    // -------- CONVOLUTION FEATURE MAP --------
 
+    // Convolution feature map
     fill(235);
     textSize(15);
     text("After Conv + ReLU", 465, 565);
@@ -1094,8 +1178,8 @@ function drawCNN() {
         150
     );
 
-    // -------- POOLING FEATURE MAP --------
 
+    // Pooling feature map
     fill(235);
     textSize(15);
     text("After MaxPool", 690, 565);
@@ -1107,8 +1191,8 @@ function drawCNN() {
         150
     );
 
-    // -------- LAYER INFORMATION --------
 
+    // Information about selected layer
     fill(225);
     textSize(16);
 
@@ -1130,8 +1214,13 @@ function drawCNN() {
         641
     );
 
-    let convSize = layer === "conv1" ? "28 x 28" : "14 x 14";
-    let poolSize = layer === "conv1" ? "14 x 14" : "7 x 7";
+    let convSize = layer === "conv1"
+        ? "28 x 28"
+        : "14 x 14";
+
+    let poolSize = layer === "conv1"
+        ? "14 x 14"
+        : "7 x 7";
 
     text(
         "Conv feature map: " + convSize,
@@ -1145,8 +1234,8 @@ function drawCNN() {
         700
     );
 
-    // -------- LEGEND --------
 
+    // Color legend
     fill(69, 215, 153);
     rect(55, 776, 13, 13);
 
@@ -1161,9 +1250,23 @@ function drawCNN() {
     text("Negative kernel weight", 290, 788);
 
     fill(150);
+
     text(
-        "Feature maps are contrast-normalized for display.",
+        "Feature maps are normalized for display.",
         690,
         788
     );
+
+    // Note about Conv2 kernels
+    if (layer === "conv2") {
+
+        fill(160);
+        textSize(11);
+
+        text(
+            "Conv2 kernel shows input channel 0 only.",
+            910,
+            727
+        );
+    }
 }
