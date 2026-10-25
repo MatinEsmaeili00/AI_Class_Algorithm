@@ -863,3 +863,307 @@ function sampleIndices(total, count) {
             )
     );
 }
+
+
+
+// ---------------- CNN FILTER SELECTION ----------------
+
+function updateCNNFilters() {
+
+    if (!result || !result.feature_maps) {
+        return;
+    }
+
+    let layer = cnnLayerSelect.value();
+
+    // Number of filters for selected convolution
+    let totalFilters = result.feature_maps[layer].length;
+
+    // Clear previous options
+    cnnFilterSelect.elt.innerHTML = "";
+
+    for (let i = 0; i < totalFilters; i++) {
+
+        cnnFilterSelect.option(
+            "Filter " + i,
+            String(i)
+        );
+    }
+
+    cnnFilterSelect.value("0");
+
+    redraw();
+}
+
+
+// ---------------- CNN FEATURE MAP ----------------
+
+// Draw 2D feature maps as grayscale images
+function drawFeatureMap(map, x, y, size) {
+
+    if (!Array.isArray(map) || map.length === 0) {
+        return;
+    }
+
+    let height = map.length;
+    let width = map[0].length;
+
+    // Find min and max values
+    let values = map.flat();
+
+    let minValue = Math.min(...values);
+    let maxValue = Math.max(...values);
+
+    let range = maxValue - minValue || 1;
+
+    let pixelSize = size / width;
+
+    noStroke();
+
+    for (let row = 0; row < height; row++) {
+
+        for (let col = 0; col < width; col++) {
+
+            let value = map[row][col];
+
+            // Normalize brightness for visualization
+            let brightness =
+                (value - minValue) / range * 255;
+
+            fill(brightness);
+
+            rect(
+                x + col * pixelSize,
+                y + row * pixelSize,
+                pixelSize + 0.1,
+                pixelSize + 0.1
+            );
+        }
+    }
+}
+
+
+// ---------------- CNN KERNEL ----------------
+
+// Visualize learned 3x3 filter weights
+function drawCNNKernel(kernel, x, y, size) {
+
+    if (!Array.isArray(kernel)) {
+        return;
+    }
+
+    let values = kernel.flat();
+
+    let maxAbs = Math.max(
+        0.000001,
+        ...values.map(v => Math.abs(v))
+    );
+
+    let pixelSize = size / 3;
+
+    for (let row = 0; row < 3; row++) {
+
+        for (let col = 0; col < 3; col++) {
+
+            let weight = kernel[row][col];
+
+            let strength = Math.abs(weight) / maxAbs;
+
+            // Positive weights are green
+            if (weight >= 0) {
+
+                fill(
+                    35,
+                    70 + strength * 170,
+                    100
+                );
+
+            } else {
+
+                // Negative weights are red
+                fill(
+                    80 + strength * 170,
+                    45,
+                    65
+                );
+            }
+
+            stroke(35);
+
+            rect(
+                x + col * pixelSize,
+                y + row * pixelSize,
+                pixelSize,
+                pixelSize
+            );
+        }
+    }
+
+    noStroke();
+}
+
+
+// ---------------- CNN VISUALIZATION ----------------
+
+function drawCNN() {
+
+    if (!result.feature_maps || !result.filters) {
+        return;
+    }
+
+    // Selected convolutional layer
+    let layer = cnnLayerSelect.value();
+
+    // Selected filter
+    let filterIndex = parseInt(
+        cnnFilterSelect.value() || "0"
+    );
+
+    let featureMaps = result.feature_maps;
+    let filters = result.filters;
+
+    // Get actual selected feature map
+    let convMap = featureMaps[layer][filterIndex];
+
+    // Get corresponding pooled feature map
+    let poolLayer = layer === "conv1"
+        ? "pool1"
+        : "pool2";
+
+    let poolMap = featureMaps[poolLayer][filterIndex];
+
+    // Get actual learned kernel weights
+    let kernel = filters[layer][filterIndex];
+
+    // -------- TITLE --------
+
+    fill(239);
+    textSize(20);
+
+    text(
+        "CNN convolution filters and feature maps",
+        48,
+        494
+    );
+
+    fill(168);
+    textSize(13);
+
+    text(
+        "Select a layer and filter to inspect its learned features.",
+        48,
+        519
+    );
+
+    // -------- INPUT IMAGE --------
+
+    fill(235);
+    textSize(15);
+    text("Input image", 55, 565);
+
+    drawDigit(
+        result.test_image,
+        55,
+        585,
+        5
+    );
+
+    // -------- KERNEL --------
+
+    fill(235);
+    textSize(15);
+    text("Learned 3x3 kernel", 250, 565);
+
+    drawCNNKernel(
+        kernel,
+        275,
+        600,
+        105
+    );
+
+    // -------- CONVOLUTION FEATURE MAP --------
+
+    fill(235);
+    textSize(15);
+    text("After Conv + ReLU", 465, 565);
+
+    drawFeatureMap(
+        convMap,
+        480,
+        590,
+        150
+    );
+
+    // -------- POOLING FEATURE MAP --------
+
+    fill(235);
+    textSize(15);
+    text("After MaxPool", 690, 565);
+
+    drawFeatureMap(
+        poolMap,
+        710,
+        590,
+        150
+    );
+
+    // -------- LAYER INFORMATION --------
+
+    fill(225);
+    textSize(16);
+
+    let totalFilters = layer === "conv1" ? 32 : 64;
+
+    text(
+        "Selected: " + layer +
+        " / Filter " + filterIndex,
+        910,
+        610
+    );
+
+    fill(170);
+    textSize(13);
+
+    text(
+        "Total output channels: " + totalFilters,
+        910,
+        641
+    );
+
+    let convSize = layer === "conv1" ? "28 x 28" : "14 x 14";
+    let poolSize = layer === "conv1" ? "14 x 14" : "7 x 7";
+
+    text(
+        "Conv feature map: " + convSize,
+        910,
+        672
+    );
+
+    text(
+        "Pooled feature map: " + poolSize,
+        910,
+        700
+    );
+
+    // -------- LEGEND --------
+
+    fill(69, 215, 153);
+    rect(55, 776, 13, 13);
+
+    fill(180);
+    textSize(12);
+    text("Positive kernel weight", 75, 788);
+
+    fill(245, 92, 97);
+    rect(270, 776, 13, 13);
+
+    fill(180);
+    text("Negative kernel weight", 290, 788);
+
+    fill(150);
+    text(
+        "Feature maps are contrast-normalized for display.",
+        690,
+        788
+    );
+}
