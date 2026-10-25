@@ -1,7 +1,6 @@
 
 import torch
 import torch.nn as nn
-import json
 from pathlib import Path
 from data_partition import get_data
 
@@ -115,35 +114,10 @@ if __name__ == "__main__":
 
     print("Accuracy:", accuracy, "%")
 
-    # Choose one image for visualization
-    test_index = 0
-    test_image = x_test[test_index]
-
-    with torch.no_grad():
-        scores = model(x_test_tensor[test_index:test_index + 1])[0]
-
-    prediction = int(torch.argmax(scores).item())
-
-    print("Predicted digit:", prediction)
-    print("Actual digit:", y_test[test_index])
-
-    # Save data for p5.js
-    result = {
-        "algorithm": "mlp",
-        "test_image": test_image.tolist(),
-        "prediction": prediction,
-        "actual": int(y_test[test_index]),
-        "scores": scores.tolist(),
-        "accuracy": float(accuracy)
-    }
-
-    folder = Path(__file__).resolve().parent / "visualization"
+    # Save trained network weights
+    folder = Path(__file__).resolve().parent / "models"
     folder.mkdir(exist_ok=True)
 
-    with open(folder / "mlp_result.json", "w") as file:
-        json.dump(result, file)
-
-    # Save trained network weights
     torch.save(model.state_dict(), folder / "mlp_model.pth")
 
-    print("MLP visualization data exported!")
+    print("MLP trained weights saved!")

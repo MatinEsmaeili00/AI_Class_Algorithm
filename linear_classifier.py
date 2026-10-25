@@ -1,6 +1,5 @@
 
 import numpy as np
-import json
 from pathlib import Path
 from data_partition import get_data
 
@@ -81,32 +80,10 @@ if __name__ == "__main__":
 
     print("Accuracy:", accuracy, "%")
 
-    # Choose one image for visualization
-    test_index = 0
-    test_image = x_test[test_index]
-
-    # Calculate class scores for this image
-    scores = forward(test_image.reshape(1, -1), weights)[0]
-
-    prediction = int(np.argmax(scores))
-
-    print("Predicted digit:", prediction)
-    print("Actual digit:", y_test[test_index])
-
-    # Save data for p5.js
-    result = {
-        "algorithm": "linear_classifier",
-        "test_image": test_image.tolist(),
-        "prediction": prediction,
-        "actual": int(y_test[test_index]),
-        "scores": scores.tolist(),
-        "accuracy": float(accuracy)
-    }
-
-    folder = Path(__file__).resolve().parent / "visualization"
+    # Save trained weights
+    folder = Path(__file__).resolve().parent / "models"
     folder.mkdir(exist_ok=True)
 
-    with open(folder / "linear_classifier_result.json", "w") as file:
-        json.dump(result, file)
+    np.save(folder / "linear_weights.npy", weights)
 
-    print("Linear Classifier visualization data exported!")
+    print("Linear Classifier weights saved!")
